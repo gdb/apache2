@@ -1201,6 +1201,25 @@ AP_DECLARE(const char *) ap_walk_config(ap_directive_t *current,
     return NULL;
 }
 
+AP_DECLARE(const char *) ap_reconfigure_directive(apr_pool_t *p,
+                                                  server_rec *server,
+                                                  const char *dir,
+                                                  const char *args) {
+    ap_directive_t dir_s = { .directive = dir, .args = args };
+    /* Set all override bits to allow anywhere */
+    cmd_parms parms = {
+        .override = RSRC_CONF | OR_ALL,
+        .limited = -1,
+        .directive = &dir_s,
+        .pool = p,
+        .temp_pool = p,
+        .server = server,
+        .override_opts = OPT_ALL | OPT_SYM_OWNER | OPT_MULTI | OPT_UNSET
+    };
+
+    return ap_walk_config_sub(&dir_s, &parms, server->lookup_defaults);
+}
+
 AP_DECLARE(const char *) ap_build_config(cmd_parms *parms,
                                          apr_pool_t *p, apr_pool_t *temp_pool,
                                          ap_directive_t **conftree)

@@ -827,6 +827,20 @@ AP_DECLARE(void) ap_register_hooks(module *m, apr_pool_t *p);
 AP_DECLARE(void) ap_fixup_virtual_hosts(apr_pool_t *p, 
                                         server_rec *main_server);
 
+/**
+ * Reconfigure a single directive with a given argument.  This method
+ * can be called at request time, although one should take care that it
+ * is safe to alter the server_rec.
+ * @param p The pool to allocate from
+ * @param server The server_rec whose configuration to update
+ * @param dir The name of the directive
+ * @param args The arguments to pass to the directive
+ */
+AP_DECLARE(const char *) ap_reconfigure_directive(apr_pool_t *p,
+                                                  server_rec *server,
+                                                  const char *dir,
+                                                  const char *args);
+
 /* For http_request.c... */
 
 /**
