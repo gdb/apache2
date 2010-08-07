@@ -1,0 +1,21 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+
+@DPATCH@
+diff -Naurp httpd-2.2.14.orig/support/ab.c httpd-2.2.14/support/ab.c
+--- httpd-2.2.14.orig/support/ab.c	2009-09-14 15:43:02.000000000 -0400
++++ httpd-2.2.14/support/ab.c	2010-03-08 13:51:32.342885487 -0500
+@@ -1568,7 +1568,14 @@ static void test(void)
+ 
+     con = calloc(concurrency, sizeof(struct connection));
+ 
++    /*
++     * XXX: a way to caluclate the stats without requiring O(requests) memory
++     * XXX: would be nice.
++     */
+     stats = calloc(requests, sizeof(struct data));
++    if (stats == NULL) {
++	err("Cannot allocate memory for result statistics");
++    }
+ 
+     if ((status = apr_pollset_create(&readbits, concurrency, cntxt, 0)) != APR_SUCCESS) {
+         apr_err("apr_pollset_create failed", status);

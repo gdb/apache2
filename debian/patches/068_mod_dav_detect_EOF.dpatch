@@ -1,0 +1,20 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+##
+## DP: Detect aborted connections for PUT and POST (Bug#451563)
+## Forwarded: https://issues.apache.org/bugzilla/show_bug.cgi?id=33098
+
+@DPATCH@
+--- a/modules/http/http_filters.c	2009/07/09 06:24:53	792408
++++ a/modules/http/http_filters.c	2009/07/09 06:28:54	792409
+@@ -524,6 +524,11 @@
+ 
+     if (ctx->state != BODY_NONE) {
+         ctx->remaining -= totalread;
++        if (ctx->remaining > 0) {
++            e = APR_BRIGADE_LAST(b);
++            if (APR_BUCKET_IS_EOS(e))
++                return APR_EOF;
++        }
+     }
+ 
+     /* If we have no more bytes remaining on a C-L request,

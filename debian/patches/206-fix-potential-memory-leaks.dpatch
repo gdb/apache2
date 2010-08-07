@@ -1,0 +1,86 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+# Description: fix possible memory leaks that have been created by earlier filters.
+# Origin: upstream, http://svn.apache.org/viewcv?view=revision&revision=916627
+
+@DPATCH@
+diff -Naurp httpd-2.2.14.orig/modules/http/byterange_filter.c httpd-2.2.14/modules/http/byterange_filter.c
+--- httpd-2.2.14.orig/modules/http/byterange_filter.c	2007-10-29 09:11:42.000000000 -0400
++++ httpd-2.2.14/modules/http/byterange_filter.c	2010-04-05 09:26:51.630145503 -0400
+@@ -308,7 +308,7 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_
+     APR_BRIGADE_INSERT_TAIL(bsend, e);
+ 
+     /* we're done with the original content - all of our data is in bsend. */
+-    apr_brigade_destroy(bb);
++    apr_brigade_cleanup(bb);
+ 
+     /* send our multipart output */
+     return ap_pass_brigade(f->next, bsend);
+diff -Naurp httpd-2.2.14.orig/modules/http/http_filters.c httpd-2.2.14/modules/http/http_filters.c
+--- httpd-2.2.14.orig/modules/http/http_filters.c	2009-01-12 09:03:38.000000000 -0500
++++ httpd-2.2.14/modules/http/http_filters.c	2010-04-05 09:28:17.866158803 -0400
+@@ -1115,7 +1115,7 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_
+             ctx = f->ctx = apr_pcalloc(r->pool, sizeof(header_filter_ctx));
+         }
+         else if (ctx->headers_sent) {
+-            apr_brigade_destroy(b);
++            apr_brigade_cleanup(b);
+             return OK;
+         }
+     }
+@@ -1286,7 +1286,7 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_
+     ap_pass_brigade(f->next, b2);
+ 
+     if (r->header_only) {
+-        apr_brigade_destroy(b);
++        apr_brigade_cleanup(b);
+         ctx->headers_sent = 1;
+         return OK;
+     }
+diff -Naurp httpd-2.2.14.orig/server/core_filters.c httpd-2.2.14/server/core_filters.c
+--- httpd-2.2.14.orig/server/core_filters.c	2009-07-06 08:03:20.000000000 -0400
++++ httpd-2.2.14/server/core_filters.c	2010-04-05 09:23:38.990157334 -0400
+@@ -655,6 +655,8 @@ apr_status_t ap_core_output_filter(ap_fi
+                             /* Create a temporary brigade as a means
+                              * of concatenating a bunch of buckets together
+                              */
++			    temp_brig = apr_brigade_create(f->c->pool,
++							f->c->bucket_alloc);
+                             if (last_merged_bucket) {
+                                 /* If we've concatenated together small
+                                  * buckets already in a previous pass,
+@@ -667,15 +669,8 @@ apr_status_t ap_core_output_filter(ap_fi
+                                  * these buckets, so that the content
+                                  * in them doesn't have to be copied again.
+                                  */
+-                                apr_bucket_brigade *bb;
+-                                bb = apr_brigade_split(b,
+-                                         APR_BUCKET_NEXT(last_merged_bucket));
+-                                temp_brig = b;
+-                                b = bb;
+-                            }
+-                            else {
+-                                temp_brig = apr_brigade_create(f->c->pool,
+-                                                           f->c->bucket_alloc);
++				APR_BRIGADE_PREPEND(b, temp_brig);
++				brigade_move(temp_brig, b, APR_BUCKET_NEXT(last_merged_bucket));
+                             }
+ 
+                             temp = APR_BRIGADE_FIRST(b);
+@@ -879,7 +874,7 @@ apr_status_t ap_core_output_filter(ap_fi
+                 logio_add_bytes_out(c, bytes_sent);
+         }
+ 
+-        apr_brigade_destroy(b);
++        apr_brigade_cleanup(b);
+ 
+         /* drive cleanups for resources which were set aside
+          * this may occur before or after termination of the request which
+@@ -910,7 +905,7 @@ apr_status_t ap_core_output_filter(ap_fi
+                           "core_output_filter: writing data to the network");
+ 
+             if (more)
+-                apr_brigade_destroy(more);
++                apr_brigade_cleanup(more);
+ 
+             /* No need to check for SUCCESS, we did that above. */
+             if (!APR_STATUS_IS_EAGAIN(rv)) {

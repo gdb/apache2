@@ -1,0 +1,129 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+
+@DPATCH@
+--- apache2-2.2.14.orig/configure	2010-04-13 14:38:14.396175449 -0400
++++ apache2-2.2.14/configure	2010-04-13 14:52:26.000000000 -0400
+@@ -729,6 +729,7 @@
+ MOD_FILTER_LDADD
+ MOD_INCLUDE_LDADD
+ MOD_EXT_FILTER_LDADD
++MOD_REQTIMEOUT_LDADD
+ MOD_CASE_FILTER_IN_LDADD
+ MOD_CASE_FILTER_LDADD
+ MOD_EXAMPLE_LDADD
+@@ -912,6 +913,7 @@
+ enable_example
+ enable_case_filter
+ enable_case_filter_in
++enable_reqtimeout
+ enable_ext_filter
+ enable_include
+ enable_filter
+@@ -1655,6 +1657,7 @@
+   --enable-example        example and demo module
+   --enable-case-filter    example uppercase conversion filter
+   --enable-case-filter-in example uppercase conversion input filter
++  --enable-reqtimeout     Limit time waiting for request from client
+   --enable-ext-filter     external filter module
+   --disable-include       Server Side Includes
+   --disable-filter        Smart Filtering
+@@ -10084,6 +10083,99 @@
+ 
+ 
+ 
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable mod_reqtimeout" >&5
++$as_echo_n "checking whether to enable mod_reqtimeout... " >&6; }
++    # Check whether --enable-reqtimeout was given.
++if test "${enable_reqtimeout+set}" = set; then :
++  enableval=$enable_reqtimeout;
++else
++  enable_reqtimeout=most
++fi
++
++    _apmod_extra_msg=""
++      if test "$module_selection" = "most" -a "$enable_reqtimeout" = "most"; then
++    _apmod_error_fatal="no"
++  else
++    _apmod_error_fatal="yes"
++  fi
++  if test "$enable_reqtimeout" = "static"; then
++    enable_reqtimeout=yes
++  elif test "$enable_reqtimeout" = "yes"; then
++    enable_reqtimeout=$module_default
++    _apmod_extra_msg=" ($module_selection)"
++  elif test "$enable_reqtimeout" = "most"; then
++    if test "$module_selection" = "most" -o "$module_selection" = "all"; then
++      enable_reqtimeout=$module_default
++      _apmod_extra_msg=" ($module_selection)"
++    elif test "$enable_reqtimeout" != "yes"; then
++      enable_reqtimeout=no
++    fi
++  elif test "$enable_reqtimeout" = "maybe-all"; then
++    if test "$module_selection" = "all"; then
++      enable_reqtimeout=$module_default
++      _apmod_extra_msg=" (all)"
++    else
++      enable_reqtimeout=no
++    fi
++  fi
++  if test "$enable_reqtimeout" != "no"; then
++            :
++  fi
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $enable_reqtimeout$_apmod_extra_msg" >&5
++$as_echo "$enable_reqtimeout$_apmod_extra_msg" >&6; }
++  if test "$enable_reqtimeout" != "no"; then
++    case "$enable_reqtimeout" in
++    shared*)
++      enable_reqtimeout=`echo $enable_reqtimeout|sed 's/shared,*//'`
++      sharedobjs=yes
++      shared=yes
++      DSO_MODULES="$DSO_MODULES reqtimeout"
++      ;;
++    *)
++      MODLIST="$MODLIST reqtimeout"
++      if test "reqtimeout" = "so"; then
++          sharedobjs=yes
++      fi
++      shared="";;
++    esac
++
++
++  if test -z ""; then
++    objects="mod_reqtimeout.lo"
++  else
++    objects=""
++  fi
++
++  if test -z "$module_standalone"; then
++    if test -z "$shared"; then
++      # The filename of a convenience library must have a "lib" prefix:
++      libname="libmod_reqtimeout.la"
++      BUILTIN_LIBS="$BUILTIN_LIBS $modpath_current/$libname"
++      modpath_static="$modpath_static $libname"
++      cat >>$modpath_current/modules.mk<<EOF
++$libname: $objects
++	\$(MOD_LINK) $objects \$(MOD_REQTIMEOUT_LDADD)
++EOF
++    else
++      apache_need_shared=yes
++      libname="mod_reqtimeout.la"
++      shobjects=`echo $objects | sed 's/\.lo/.slo/g'`
++      modpath_shared="$modpath_shared $libname"
++      cat >>$modpath_current/modules.mk<<EOF
++$libname: $shobjects
++	\$(SH_LINK) -rpath \$(libexecdir) -module -avoid-version  $objects \$(MOD_REQTIMEOUT_LDADD)
++EOF
++    fi
++  fi
++
++
++  APACHE_VAR_SUBST="$APACHE_VAR_SUBST MOD_REQTIMEOUT_LDADD"
++
++
++
++  fi
++
++
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable mod_ext_filter" >&5
+ $as_echo_n "checking whether to enable mod_ext_filter... " >&6; }
+     # Check whether --enable-ext-filter was given.

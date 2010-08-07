@@ -1,0 +1,50 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+# Description: Don't report server has reached MaxClients until it has.
+# Origin: upstream,  http://svn.apache.org/viewvc?view=revision&revision=910320
+
+@DPATCH@
+diff -Naurp httpd-2.2.14.orig/server/mpm/worker/worker.c httpd-2.2.14/server/mpm/worker/worker.c
+--- httpd-2.2.14.orig/server/mpm/worker/worker.c	2007-07-17 10:48:25.000000000 -0400
++++ httpd-2.2.14/server/mpm/worker/worker.c	2010-04-02 15:36:49.720038926 -0400
+@@ -1513,15 +1513,32 @@ static void perform_idle_server_maintena
+     else if (idle_thread_count < min_spare_threads) {
+         /* terminate the free list */
+         if (free_length == 0) {
+-            /* only report this condition once */
+-            static int reported = 0;
+-
+-            if (!reported) {
+-                ap_log_error(APLOG_MARK, APLOG_ERR, 0,
+-                             ap_server_conf,
+-                             "server reached MaxClients setting, consider"
+-                             " raising the MaxClients setting");
+-                reported = 1;
++            /* No room for more children, might warn about configuration */
++            if (active_thread_count >= ap_daemons_limit * ap_threads_per_child) {
++		/* no threads are "inactive" - starting, stopping, etc. - which would confuse matters */
++		/* Are all threads in use?  Then we're really at MaxClients */
++		if (0 == idle_thread_count) {
++		    /* only report this condition once */
++		    static int reported = 0;
++
++		    if (!reported) {
++			ap_log_error(APLOG_MARK, APLOG_ERR, 0,
++				ap_server_conf,
++				"server reached MaxClients setting, consider"
++				" raising the MaxClients setting");
++			reported = 1;
++		    }
++		} else {
++		  static int reported = 0;
++
++		  if (!reported) {
++			ap_log_error(APLOG_MARK, APLOG_ERR, 0,
++				ap_server_conf,
++				"server is within MinSpareThreads of MaxClients, consider"
++				" raising the MaxClients setting");
++			reported = 1;
++		}
++	     }
+             }
+             idle_spawn_rate = 1;
+         }

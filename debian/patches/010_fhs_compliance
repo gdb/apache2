@@ -1,0 +1,34 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 010_more_fhs_compliance by Adam Conrad <adconrad@0c3.net>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Fix up FHS file locations for apache2 droppings.
+
+@DPATCH@
+--- apache2/include/ap_config_layout.h.in.orig	2005-06-15 00:06:51.000000000 +1000
++++ apache2/include/ap_config_layout.h.in	2005-10-23 14:02:43.000000000 +1000
+@@ -55,5 +55,6 @@
+ #define DEFAULT_REL_LOGFILEDIR "@rel_logfiledir@"
+ #define DEFAULT_EXP_PROXYCACHEDIR "@exp_proxycachedir@"
+ #define DEFAULT_REL_PROXYCACHEDIR "@rel_proxycachedir@"
++#define DEFAULT_PIDLOG "/var/run/apache2.pid"
+ 
+ #endif /* AP_CONFIG_LAYOUT_H */
+diff -ruN -x Makefile.in -x configure -x '*~' -x build-tree.orig -x '*.rej' build-tree.orig/apache2/config.layout build-tree/apache2/config.layout
+--- apache2/config.layout	2002-07-16 19:29:59.000000000 +0100
++++ apache2/config.layout	2003-05-07 13:28:20.000000000 +0100
+@@ -314,11 +314,11 @@
+     manualdir:     ${htdocsdir}/manual
+     cgidir:        ${prefix}/usr/lib/cgi-bin
+     includedir:    ${exec_prefix}/include/apache2
+-    localstatedir: ${prefix}/var/run
+-    runtimedir:    ${prefix}/var/run
++    localstatedir: ${prefix}/var/lock/apache2
++    runtimedir:    ${prefix}/var/run/apache2
+     logfiledir:    ${prefix}/var/log/apache2
+     proxycachedir: ${prefix}/var/cache/apache2/proxy
+     infodir:       ${exec_prefix}/share/info
+-    installbuilddir: ${prefix}/etc/apache2/build
++    installbuilddir: ${prefix}/usr/share/apache2/build
+     errordir:      ${datadir}/error
+ </Layout>

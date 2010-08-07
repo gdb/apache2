@@ -1,0 +1,121 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 050_enhance_apache2ctl.dpatch by Stefan Fritsch <sf@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: - mv creation of necessary directories to apache2ctl,
+## DP:   to make it work on new installations
+## DP: - add usage message
+
+@DPATCH@
+diff -urNad trunk~/support/apachectl.in trunk/support/apachectl.in
+--- trunk~/support/apachectl.in	2010-01-02 17:51:49.480626116 +0100
++++ trunk/support/apachectl.in	2010-01-02 17:52:31.089347144 +0100
+@@ -40,28 +40,31 @@
+ # |||||||||||||||||||| START CONFIGURATION SECTION  ||||||||||||||||||||
+ # --------------------                              --------------------
+ # 
+-# the path to your httpd binary, including options if necessary
+-HTTPD='@exp_sbindir@/@progname@'
+-#
++# the path to the environment variable file
++test -z "$APACHE_ENVVARS" && APACHE_ENVVARS='/etc/apache2/envvars'
+ # pick up any necessary environment variables
+-if test -f @exp_sysconfdir@/envvars; then
+-  . @exp_sysconfdir@/envvars
++if test -f $APACHE_ENVVARS; then
++  . $APACHE_ENVVARS
+ fi
++# the following APACHE_* variables should be set in /etc/apache2/envvars
++#
++# the path to your httpd binary, including options if necessary
++HTTPD=${APACHE_HTTPD:-/usr/sbin/apache2}
+ #
+ # a command that outputs a formatted text version of the HTML at the
+ # url given on the command line.  Designed for lynx, however other
+ # programs may work.  
+-LYNX="@LYNX_PATH@ -dump"
++LYNX="${APACHE_LYNX:-@LYNX_PATH@ -dump}"
+ #
+ # the URL to your server's mod_status status page.  If you do not
+ # have one, then status and fullstatus will not work.
+-STATUSURL="http://localhost:@PORT@/server-status"
++STATUSURL="${APACHE_STATUSURL:-http://localhost:@PORT@/server-status}"
+ #
+ # Set this variable to a command that increases the maximum
+ # number of file descriptors allowed per child process. This is
+ # critical for configurations that use many file descriptors,
+ # such as mass vhosting, or a multithreaded server.
+-ULIMIT_MAX_FILES="@APACHECTL_ULIMIT@"
++ULIMIT_MAX_FILES="${APACHE_ULIMIT_MAX_FILES:-@APACHECTL_ULIMIT@}"
+ # --------------------                              --------------------
+ # ||||||||||||||||||||   END CONFIGURATION SECTION  ||||||||||||||||||||
+ 
+@@ -71,13 +74,42 @@
+ fi
+ 
+ ERROR=0
+-if [ "x$ARGV" = "x" ] ; then 
+-    ARGV="-h"
++if [ "x$ARGV" = "x" ] || [ "x$ARGV" = "xusage" ] || [ "x$ARGV" = "xhelp" ] || [ "x$ARGV" = "x--help" ]; then 
++    echo "Usage: $0 start|stop|restart|graceful|graceful-stop|configtest|status|fullstatus|help" >&2
++    echo "       $0 <apache2 args>" >&2
++    echo "       $0 -h            (for help on <apache2 args>)" >&2
++    exit 1
+ fi
+ 
++get_status () {
++    if ! $LYNX $STATUSURL ; then
++        echo "'$LYNX $STATUSURL'" failed. >&2
++        echo Maybe you need to install a package providing www-browser or you >&2
++        echo need to adjust the APACHE_LYNX variable in /etc/apache2/envvars >&2
++        exit 1
++    fi
++}
++
+ case $ARGV in
+-start|stop|restart|graceful|graceful-stop)
+-    $HTTPD -k $ARGV
++start)
++    mkdir -p ${APACHE_RUN_DIR:-/var/run/apache2}
++    install -d -o ${APACHE_RUN_USER:-www-data} ${APACHE_LOCK_DIR:-/var/lock/apache2}
++    # ssl_scache shouldn't be here if we're just starting up.
++    # (this is bad if there are several apache2 instances running)
++    rm -f ${APACHE_RUN_DIR:-/var/run/apache2}/*ssl_scache*
++    $HTTPD ${APACHE_ARGUMENTS} -k $ARGV
++    ERROR=$?
++    ;;
++stop|graceful-stop)
++    $HTTPD ${APACHE_ARGUMENTS} -k $ARGV
++    ERROR=$?
++    ;;
++restart|graceful)
++    if $HTTPD ${APACHE_ARGUMENTS} -t 2> /dev/null ; then
++        $HTTPD ${APACHE_ARGUMENTS} -k $ARGV
++    else
++        $HTTPD ${APACHE_ARGUMENTS} -t
++    fi
+     ERROR=$?
+     ;;
+ startssl|sslstart|start-SSL)
+@@ -87,17 +119,17 @@
+     ERROR=2
+     ;;
+ configtest)
+-    $HTTPD -t
++    $HTTPD ${APACHE_ARGUMENTS} -t
+     ERROR=$?
+     ;;
+ status)
+-    $LYNX $STATUSURL | awk ' /process$/ { print; exit } { print } '
++    get_status | awk ' /process$/ { print; exit } { print } '
+     ;;
+ fullstatus)
+-    $LYNX $STATUSURL
++    get_status
+     ;;
+ *)
+-    $HTTPD $ARGV
++    $HTTPD ${APACHE_ARGUMENTS} $ARGV
+     ERROR=$?
+ esac
+ 
