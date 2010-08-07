@@ -1920,39 +1920,44 @@ AP_CORE_DECLARE(const char *) ap_init_virtual_host(apr_pool_t *p,
     return ap_parse_vhost_addrs(p, hostname, s);
 }
 
+AP_DECLARE(void) ap_fixup_virtual_host(apr_pool_t *p, server_rec *main_server,
+                                       server_rec *virt)
+{
+    merge_server_configs(p, main_server->module_config,
+                         virt->module_config);
+
+    virt->lookup_defaults =
+        ap_merge_per_dir_configs(p, main_server->lookup_defaults,
+                                 virt->lookup_defaults);
+
+    if (virt->server_admin == NULL)
+        virt->server_admin = main_server->server_admin;
+
+    if (virt->timeout == 0)
+        virt->timeout = main_server->timeout;
+
+    if (virt->keep_alive_timeout == 0)
+        virt->keep_alive_timeout = main_server->keep_alive_timeout;
+
+    if (virt->keep_alive == -1)
+        virt->keep_alive = main_server->keep_alive;
+
+    if (virt->keep_alive_max == -1)
+        virt->keep_alive_max = main_server->keep_alive_max;
+
+    /* XXX: this is really something that should be dealt with by a
+     * post-config api phase
+     */
+    ap_core_reorder_directories(p, virt);
+}
+
 
 AP_DECLARE(void) ap_fixup_virtual_hosts(apr_pool_t *p, server_rec *main_server)
 {
     server_rec *virt;
 
-    for (virt = main_server->next; virt; virt = virt->next) {
-        merge_server_configs(p, main_server->module_config,
-                             virt->module_config);
-
-        virt->lookup_defaults =
-            ap_merge_per_dir_configs(p, main_server->lookup_defaults,
-                                     virt->lookup_defaults);
-
-        if (virt->server_admin == NULL)
-            virt->server_admin = main_server->server_admin;
-
-        if (virt->timeout == 0)
-            virt->timeout = main_server->timeout;
-
-        if (virt->keep_alive_timeout == 0)
-            virt->keep_alive_timeout = main_server->keep_alive_timeout;
-
-        if (virt->keep_alive == -1)
-            virt->keep_alive = main_server->keep_alive;
-
-        if (virt->keep_alive_max == -1)
-            virt->keep_alive_max = main_server->keep_alive_max;
-
-        /* XXX: this is really something that should be dealt with by a
-         * post-config api phase
-         */
-        ap_core_reorder_directories(p, virt);
-    }
+    for (virt = main_server->next; virt; virt = virt->next)
+        ap_fixup_virtual_host(p, main_server, virt);
 
     ap_core_reorder_directories(p, main_server);
 }

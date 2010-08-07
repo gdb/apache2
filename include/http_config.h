@@ -828,6 +828,17 @@ AP_DECLARE(void) ap_fixup_virtual_hosts(apr_pool_t *p,
                                         server_rec *main_server);
 
 /**
+ * Setup a single virtual host by merging the main server_rec into it.
+ * @param p The pool to allocate from
+ * @param main_server The server_rec with which to merge
+ * @param virt The virtual host server_rec with some set of directives to override already set
+ */
+AP_DECLARE(void) ap_fixup_virtual_host(apr_pool_t *p,
+				       server_rec *main_server,
+				       server_rec *virt);
+
+
+/**
  * Reconfigure a single directive with a given argument.  This method
  * can be called at request time, although one should take care that it
  * is safe to alter the server_rec.
